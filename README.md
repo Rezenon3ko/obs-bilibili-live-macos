@@ -14,7 +14,7 @@ macOS 专用的 B 站直播轻量化 OBS 脚本，适用于 OBS Studio 32。
 ## 环境要求
 
 - macOS
-- Python 3.11
+- Python 3.11（推荐），理论兼容 Python 3.7 ～ 3.11，Python 3.12+ 暂未验证
 - OBS Studio 32
 
 Python 依赖：
