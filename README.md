@@ -1,6 +1,6 @@
 # obs-bilibili-live-macos
 
-macOS 专用的 B 站直播 OBS 脚本，轻量、单账号，只针对 Python 3.11 和 OBS Studio 32。
+macOS 专用的 B 站直播轻量化 OBS 脚本，适用于 OBS Studio 32。
 
 ## 功能
 
