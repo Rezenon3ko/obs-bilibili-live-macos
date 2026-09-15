@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS
+.DS_Store
+
+# IDE / editor
+.idea/
+.vscode/
+
+# Virtual environments
+.venv/
+venv/
+
+# Runtime data and logs
+data/
+
+# Logs
+*.log
