@@ -21,11 +21,18 @@ class BiliLiveMacApp:
         self.config = ConfigStore(config_file())
         self.account_store = AccountStore(ConfigStore(accounts_file()))
         self.account_api = BiliAccountApi()
-        self.login_flow = LoginFlow(self.account_api, self.account_store)
+        self._login_qr_preview = QrPreview()
+        self.login_flow = LoginFlow(
+            self.account_api,
+            self.account_store,
+            self._show_login_qr,
+            self._close_login_qr,
+        )
         self.live_api = BiliLiveApi(self.account_api.session)
         self.room_service = RoomService(self.live_api)
         self.stream_service = StreamService(self.live_api)
         self._face_qr_preview = QrPreview()
+        self._face_auth_path = None
         self.stream_flow = StreamFlow(
             self.stream_service,
             self._show_face_auth_qr,
@@ -165,6 +172,7 @@ class BiliLiveMacApp:
 
     def handle_unload(self) -> None:
         self._face_qr_preview.close()
+        self._login_qr_preview.close()
         self.logger.info("script_unload")
         self._loaded = False
 
@@ -189,7 +197,13 @@ class BiliLiveMacApp:
 
     def _on_logout(self, *args):
         self.account_store.clear()
-        self.login_flow = LoginFlow(self.account_api, self.account_store)
+        self._login_qr_preview.close()
+        self.login_flow = LoginFlow(
+            self.account_api,
+            self.account_store,
+            self._show_login_qr,
+            self._close_login_qr,
+        )
         self.room_service = RoomService(self.live_api)
         self.stream_service = StreamService(self.live_api)
         self._face_qr_preview.close()
@@ -254,6 +268,12 @@ class BiliLiveMacApp:
         self._sync_stream_status()
         return True
 
+    def _show_login_qr(self, path):
+        self._login_qr_preview.open(path)
+
+    def _close_login_qr(self):
+        self._login_qr_preview.close()
+
     def _show_face_auth_qr(self):
         account = self.account_store.current()
         uid = account.get("uid") or ""
@@ -267,6 +287,7 @@ class BiliLiveMacApp:
         )
         try:
             path = make_qr_image(url, "face_auth")
+            self._face_auth_path = path
             self._face_qr_preview.open(path)
         except Exception as exc:
             self._set_stream_status(f"生成人脸认证二维码失败：{exc}")
@@ -275,6 +296,12 @@ class BiliLiveMacApp:
 
     def _close_face_auth_qr(self):
         self._face_qr_preview.close()
+        if self._face_auth_path is not None:
+            try:
+                self._face_auth_path.unlink()
+            except OSError:
+                pass
+            self._face_auth_path = None
 
     def _apply_room_result(self, result) -> None:
         if not result.get("ok"):
