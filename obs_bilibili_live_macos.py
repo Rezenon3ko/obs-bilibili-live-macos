@@ -15,19 +15,19 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 MODULE_NAMES = (
-    "bilibili_live_mac.paths",
-    "bilibili_live_mac.config_store",
-    "bilibili_live_mac.obs_bridge",
-    "bilibili_live_mac.logger",
-    "bilibili_live_mac.qr_utils",
-    "bilibili_live_mac.api.auth_api",
-    "bilibili_live_mac.api.live_api",
-    "bilibili_live_mac.services.account_store",
-    "bilibili_live_mac.services.login_flow",
-    "bilibili_live_mac.services.room_service",
-    "bilibili_live_mac.services.stream_flow",
-    "bilibili_live_mac.services.stream_service",
-    "bilibili_live_mac.app",
+    "bilibili_live_macos.paths",
+    "bilibili_live_macos.config_store",
+    "bilibili_live_macos.obs_bridge",
+    "bilibili_live_macos.logger",
+    "bilibili_live_macos.qr_utils",
+    "bilibili_live_macos.api.auth_api",
+    "bilibili_live_macos.api.live_api",
+    "bilibili_live_macos.services.account_store",
+    "bilibili_live_macos.services.login_flow",
+    "bilibili_live_macos.services.room_service",
+    "bilibili_live_macos.services.stream_flow",
+    "bilibili_live_macos.services.stream_service",
+    "bilibili_live_macos.app",
 )
 
 
@@ -37,7 +37,7 @@ def _load_app():
     for module in modules:
         importlib.reload(module)
 
-    from bilibili_live_mac.app import BiliLiveMacApp
+    from bilibili_live_macos.app import BiliLiveMacApp
     return BiliLiveMacApp()
 
 

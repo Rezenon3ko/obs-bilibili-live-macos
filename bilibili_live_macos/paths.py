@@ -20,7 +20,7 @@ def accounts_file() -> Path:
 
 
 def log_file() -> Path:
-    return data_root() / "logs" / "bilibili_live_mac.log"
+    return data_root() / "logs" / "bilibili_live_macos.log"
 
 
 def qr_dir() -> Path:

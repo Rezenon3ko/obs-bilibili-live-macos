@@ -36,7 +36,7 @@ python3 -m pip install -r requirements.txt
 
 1. 打开 OBS
 2. 菜单栏选择 `工具` -> `脚本`
-3. 点击 `+`，选择本项目的 `bilibili_live_macos.py`
+3. 点击 `+`，选择本项目的 `obs_bilibili_live_macos.py`
 4. 脚本加载后，在属性面板中操作
 
 ## 使用流程
@@ -58,7 +58,7 @@ python3 -m pip install -r requirements.txt
 日志文件：
 
 ```text
-./data/logs/bilibili_live_mac.log
+./data/logs/bilibili_live_macos.log
 ```
 
 ## 许可证
