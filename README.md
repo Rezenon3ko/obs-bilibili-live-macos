@@ -46,6 +46,27 @@ python3 -m pip install -r requirements.txt
 python3 -m pip install -r requirements.txt
 ```
 
+## 设置 OBS 的 Python 路径
+
+1. 打开“终端”
+2. 输入 `python3` 并回车，进入 Python 交互模式
+3. 依次输入：
+
+```python
+import sys
+print(sys.prefix)
+exit()
+```
+
+4. 记下打印出来的路径，例如：
+
+```text
+/Library/Frameworks/Python.framework/Versions/3.11
+```
+
+5. 打开 OBS，进入 `工具` -> `脚本` -> `Python 设置`
+6. 点击浏览，把刚才得到的路径选择为 OBS 的 Python 路径
+
 ## 在 OBS 中加载
 
 1. 打开 OBS
