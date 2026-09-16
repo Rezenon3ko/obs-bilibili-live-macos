@@ -26,7 +26,21 @@ qrcode[pil]
 
 ## 安装依赖
 
-在项目目录执行：
+### 方式一：双击一键安装（推荐）
+
+在 Finder 中双击项目里的 `install.command`。
+
+它会自动进入项目目录并执行：
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+如果 macOS 提示无法打开，可以先右键 `install.command`，选择“打开”。
+
+### 方式二：手动安装
+
+在终端中进入项目目录，然后执行：
 
 ```bash
 python3 -m pip install -r requirements.txt
