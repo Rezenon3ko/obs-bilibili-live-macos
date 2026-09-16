@@ -19,6 +19,7 @@ MODULE_NAMES = (
     "bilibili_live_macos.config_store",
     "bilibili_live_macos.obs_bridge",
     "bilibili_live_macos.logger",
+    "bilibili_live_macos.macos_main_thread",
     "bilibili_live_macos.qr_utils",
     "bilibili_live_macos.api.auth_api",
     "bilibili_live_macos.api.live_api",

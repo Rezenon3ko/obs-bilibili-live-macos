@@ -1,10 +1,13 @@
 """BiliLiveMac 应用层。"""
 
+import threading
+
 from . import obs_bridge as bridge
 from .api.auth_api import BiliAccountApi
 from .api.live_api import BiliLiveApi
 from .config_store import ConfigStore
 from .logger import Logger
+from .macos_main_thread import schedule_on_main_thread
 from .paths import accounts_file, config_file, ensure_runtime_dirs
 from .qr_utils import QrPreview, make_qr_image
 from .services.account_store import AccountStore
@@ -42,6 +45,10 @@ class BiliLiveMacApp:
         self._room_title_prop = None
         self._loaded = False
         self._last_login_state = None
+        self._room_refresh_lock = threading.Lock()
+        self._auto_room_refresh_started = False
+        self._auto_room_refresh_thread = None
+        self._pending_room_result = None
 
     def _ensure_ready(self, settings=None) -> None:
         ensure_runtime_dirs()
@@ -58,6 +65,7 @@ class BiliLiveMacApp:
         self._ensure_ready(settings)
         self._loaded = True
         self._restore_account_session()
+        self._start_auto_room_refresh()
         self.logger.info("script_load")
 
     def handle_update(self, settings) -> None:
@@ -156,7 +164,8 @@ class BiliLiveMacApp:
             self.stream_flow.tick(seconds)
             self._sync_stream_status()
             if not was_logged_in and self.account_store.is_logged_in():
-                self.logger.info("扫码登录成功，请在 OBS 面板点击“更新账号信息”")
+                self.logger.info("扫码登录成功，正在自动刷新房间状态")
+                self._start_auto_room_refresh()
                 self._sync_account_status()
 
     def handle_unload(self) -> None:
@@ -187,6 +196,9 @@ class BiliLiveMacApp:
 
     def _on_logout(self, *args):
         self.account_store.clear()
+        with self._room_refresh_lock:
+            self._auto_room_refresh_started = False
+            self._pending_room_result = None
         self.login_flow.stop()
         self._login_qr_preview.close()
         self.login_flow = LoginFlow(
@@ -338,6 +350,49 @@ class BiliLiveMacApp:
     def _sync_stream_status(self) -> None:
         self._set_stream_status(self.stream_flow.message)
 
+    def _start_auto_room_refresh(self) -> None:
+        if not self._loaded or not self.account_store.is_logged_in():
+            return
+
+        with self._room_refresh_lock:
+            if self._auto_room_refresh_started:
+                return
+            self._auto_room_refresh_started = True
+            self._auto_room_refresh_thread = threading.Thread(
+                target=self._auto_room_refresh_worker,
+                name="bilibili-auto-room-refresh",
+                daemon=True,
+            )
+            self._auto_room_refresh_thread.start()
+
+    def _auto_room_refresh_worker(self) -> None:
+        result = {"ok": False, "message": "自动刷新直播间失败"}
+        try:
+            result = self.room_service.refresh()
+        except Exception as exc:
+            result = {"ok": False, "message": f"自动刷新直播间失败：{exc}"}
+            self.logger.error(str(exc))
+
+        with self._room_refresh_lock:
+            self._auto_room_refresh_started = False
+            self._pending_room_result = result
+
+        if self._loaded and self.account_store.is_logged_in():
+            schedule_on_main_thread(self._apply_pending_room_result)
+
+    def _apply_pending_room_result(self) -> None:
+        if not self._loaded:
+            return
+        if not self.account_store.is_logged_in():
+            return
+
+        with self._room_refresh_lock:
+            result = self._pending_room_result
+            self._pending_room_result = None
+
+        if result is not None:
+            self._apply_room_result(result)
+
     def _auto_refresh_room_if_logged_in(self) -> None:
         if not self.account_store.is_logged_in():
             return
@@ -410,4 +465,3 @@ class BiliLiveMacApp:
                 self.logger.info(f"登录状态变化：{state} {self.login_flow.message}")
                 self._last_login_state = state
             self._sync_account_status()
-
