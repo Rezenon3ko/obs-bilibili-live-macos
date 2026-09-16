@@ -40,8 +40,6 @@ class BiliLiveMacApp:
         )
         self._room_area_prop = None
         self._room_title_prop = None
-        self._ui_refresh_prop = None
-        self._props = None
         self._loaded = False
         self._last_login_state = None
 
@@ -70,14 +68,6 @@ class BiliLiveMacApp:
     def build_properties(self):
         self._ensure_ready(self.settings)
         props = bridge.create_properties()
-        self._props = props
-        self._ui_refresh_prop = bridge.add_button(
-            props,
-            "ui_refresh",
-            "",
-            self._on_ui_refresh,
-        )
-        bridge.set_visible(self._ui_refresh_prop, False)
 
         account_props = bridge.create_properties()
         bridge.add_group(
@@ -167,8 +157,8 @@ class BiliLiveMacApp:
             self.stream_flow.tick(seconds)
             self._sync_stream_status()
             if not was_logged_in and self.account_store.is_logged_in():
-                self.logger.info("扫码登录成功，开始自动刷新直播间")
-                self._auto_refresh_room_if_logged_in()
+                self.logger.info("扫码登录成功，请在 OBS 面板点击“更新账号信息”")
+                self._sync_account_status()
 
     def handle_unload(self) -> None:
         self._face_qr_preview.close()
@@ -224,9 +214,6 @@ class BiliLiveMacApp:
         self.logger.info("更新账号信息")
         return True
 
-    def _on_ui_refresh(self, *args):
-        return True
-
     def _on_room_save_title(self, *args):
         if not self.account_store.is_logged_in():
             self._set_room_status("请先登录账号")
@@ -236,7 +223,6 @@ class BiliLiveMacApp:
         if result.get("ok"):
             self._refresh_room_after_change()
             bridge.set_string(self.settings, "room_title", title)
-            self._refresh_properties()
         else:
             self._set_room_status(result.get("message") or "保存标题失败")
         return True
@@ -343,12 +329,10 @@ class BiliLiveMacApp:
     def _set_room_status(self, message: str) -> None:
         if self.settings is not None:
             bridge.set_string(self.settings, "room_status", message)
-        self._refresh_properties()
 
     def _set_stream_status(self, message: str) -> None:
         if self.settings is not None:
             bridge.set_string(self.settings, "stream_status", message)
-        self._refresh_properties()
 
     def _sync_stream_status(self) -> None:
         self._set_stream_status(self.stream_flow.message)
@@ -417,7 +401,6 @@ class BiliLiveMacApp:
         else:
             text = self.login_flow.status_text()
         bridge.set_string(self.settings, "account_status", text)
-        self._refresh_properties()
 
     def _sync_login_status_after_tick(self) -> None:
         state = self.login_flow.state
@@ -427,11 +410,3 @@ class BiliLiveMacApp:
                 self._last_login_state = state
             self._sync_account_status()
 
-    def _refresh_properties(self) -> None:
-        if self.settings is not None and self._props is not None:
-            bridge.apply_settings(self._props, self.settings)
-        if self._ui_refresh_prop is not None:
-            try:
-                bridge.button_clicked(self._ui_refresh_prop, None)
-            except Exception:
-                pass
