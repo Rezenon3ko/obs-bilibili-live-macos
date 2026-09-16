@@ -1,5 +1,7 @@
 """二维码登录状态机。"""
 
+import threading
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -12,7 +14,7 @@ POLL_INTERVAL_SECONDS = 1.5
 
 
 class LoginFlow:
-    """管理一次二维码登录从生成到持久化的完整过程。"""
+    """管理一次二维码登录，轮询放在后台线程，避免阻塞 OBS。"""
 
     def __init__(
         self,
@@ -29,7 +31,9 @@ class LoginFlow:
         self.message = "未开始登录"
         self.qr_key: Optional[str] = None
         self.qr_path: Optional[Path] = None
-        self._elapsed = 0.0
+        self._poll_thread: Optional[threading.Thread] = None
+        self._stop_requested = False
+        self._state_lock = threading.Lock()
 
     @property
     def is_active(self) -> bool:
@@ -40,6 +44,7 @@ class LoginFlow:
             self._open_qr_image()
 
     def begin(self) -> bool:
+        self.stop()
         self._discard_qr_image()
         ticket = self.api.create_ticket()
         if not ticket.ok:
@@ -49,43 +54,72 @@ class LoginFlow:
 
         self.qr_key = ticket.qr_key
         self.qr_path = self._write_qr_image(ticket.qr_content)
+        self._stop_requested = False
         self.state = "waiting"
         self.message = "二维码已生成，请使用 B 站 App 扫码"
-        self._elapsed = 0.0
         self._open_qr_image()
+        self._start_polling()
         return True
 
     def tick(self, delta_seconds: float) -> None:
-        if not self.is_active:
-            return
+        """OBS tick 只读取状态，不再做网络请求。"""
+        return
 
-        self._elapsed += float(delta_seconds)
-        if self._elapsed < POLL_INTERVAL_SECONDS:
-            return
-
-        self._elapsed = 0.0
-        if not self.qr_key:
-            self.state = "error"
-            self.message = "登录状态异常，请重新获取二维码"
-            return
-
-        result = self.api.check_ticket(self.qr_key)
-        self.state = result.state
-        self.message = result.message
-
-        if result.state == "scanned":
-            return
-
-        if result.state == "success" and result.cookies:
-            self._finish_success(result.cookies)
-            return
-
-        if result.state in {"expired", "error"}:
-            self.qr_key = None
-            self._discard_qr_image()
+    def stop(self) -> None:
+        self._stop_requested = True
+        thread = self._poll_thread
+        self._poll_thread = None
+        if (
+            thread is not None
+            and thread.is_alive()
+            and thread is not threading.current_thread()
+        ):
+            thread.join(timeout=1.0)
 
     def status_text(self) -> str:
         return self.message
+
+    def _start_polling(self) -> None:
+        self.stop()
+        self._stop_requested = False
+        self._poll_thread = threading.Thread(
+            target=self._poll_loop,
+            name="bilibili-login-poll",
+            daemon=True,
+        )
+        self._poll_thread.start()
+
+    def _poll_loop(self) -> None:
+        while not self._stop_requested:
+            time.sleep(POLL_INTERVAL_SECONDS)
+            if self._stop_requested:
+                break
+
+            with self._state_lock:
+                if not self.is_active:
+                    break
+                if not self.qr_key:
+                    self.state = "error"
+                    self.message = "登录状态异常，请重新获取二维码"
+                    break
+
+            result = self.api.check_ticket(self.qr_key)
+
+            with self._state_lock:
+                self.state = result.state
+                self.message = result.message
+
+                if result.state == "scanned":
+                    continue
+
+                if result.state == "success" and result.cookies:
+                    self._finish_success(result.cookies)
+                    break
+
+                if result.state in {"expired", "error"}:
+                    self.qr_key = None
+                    self._discard_qr_image()
+                    break
 
     def _finish_success(self, cookies) -> None:
         profile = self.api.fetch_profile()

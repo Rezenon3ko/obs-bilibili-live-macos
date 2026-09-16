@@ -58,7 +58,6 @@ class BiliLiveMacApp:
         self._ensure_ready(settings)
         self._loaded = True
         self._restore_account_session()
-        self._auto_refresh_room_if_logged_in()
         self.logger.info("script_load")
 
     def handle_update(self, settings) -> None:
@@ -161,6 +160,7 @@ class BiliLiveMacApp:
                 self._sync_account_status()
 
     def handle_unload(self) -> None:
+        self.login_flow.stop()
         self._face_qr_preview.close()
         self._login_qr_preview.close()
         self.logger.info("script_unload")
@@ -187,6 +187,7 @@ class BiliLiveMacApp:
 
     def _on_logout(self, *args):
         self.account_store.clear()
+        self.login_flow.stop()
         self._login_qr_preview.close()
         self.login_flow = LoginFlow(
             self.account_api,
